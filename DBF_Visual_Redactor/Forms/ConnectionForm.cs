@@ -34,6 +34,11 @@ namespace DBF_Visual_Redactor
 
         private void button2_Click(object sender, EventArgs e)
         {
+            Close();
+        }
+
+        private void ConnectionForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
             Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             var settings = config.AppSettings.Settings;
             settings["ip"].Value = textBoxIP.Text;
@@ -42,7 +47,6 @@ namespace DBF_Visual_Redactor
             port = settings["port"].Value;
             config.Save(ConfigurationSaveMode.Modified);
             ConfigurationManager.RefreshSection(config.AppSettings.SectionInformation.Name);
-            Close();
         }
     }
 }
