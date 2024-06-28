@@ -52,12 +52,8 @@
             this.filesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.importToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.foldersImportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.warehousImportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.fullImportWarehousToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.currentUserImportWarehousToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.FoldersExportToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.WarehousExportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.optionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.connectionsPropertiesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.treeViewPrev = new System.Windows.Forms.TreeView();
@@ -101,7 +97,6 @@
             this.listBoxItems.SelectedIndexChanged += new System.EventHandler(this.listBox2_SelectedIndexChanged);
             this.listBoxItems.DragEnter += new System.Windows.Forms.DragEventHandler(this.listBox2_DragEnter);
             this.listBoxItems.DragOver += new System.Windows.Forms.DragEventHandler(this.listBox2_DragOver);
-            this.listBoxItems.DoubleClick += new System.EventHandler(this.listBoxItems_DoubleClick);
             this.listBoxItems.KeyDown += new System.Windows.Forms.KeyEventHandler(this.listBoxItems_KeyDown);
             this.listBoxItems.MouseDown += new System.Windows.Forms.MouseEventHandler(this.listBox2_MouseDown);
             this.listBoxItems.MouseMove += new System.Windows.Forms.MouseEventHandler(this.listBox2_MouseMove);
@@ -204,7 +199,7 @@
             this.buttonSaveParameters.TabIndex = 17;
             this.buttonSaveParameters.Text = "Сохранить изменения";
             this.buttonSaveParameters.UseVisualStyleBackColor = true;
-            this.buttonSaveParameters.Click += new System.EventHandler(this.button3_Click);
+            this.buttonSaveParameters.Click += new System.EventHandler(this.buttonSaveParameters_Click);
             // 
             // comboBoxFolders
             // 
@@ -381,8 +376,7 @@
             // importToolStripMenuItem
             // 
             this.importToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.foldersImportToolStripMenuItem,
-            this.warehousImportToolStripMenuItem});
+            this.foldersImportToolStripMenuItem});
             this.importToolStripMenuItem.Name = "importToolStripMenuItem";
             this.importToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.importToolStripMenuItem.Text = "Import";
@@ -390,59 +384,25 @@
             // foldersImportToolStripMenuItem
             // 
             this.foldersImportToolStripMenuItem.Name = "foldersImportToolStripMenuItem";
-            this.foldersImportToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.foldersImportToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
             this.foldersImportToolStripMenuItem.Text = "FOLDERS";
             this.foldersImportToolStripMenuItem.Click += new System.EventHandler(this.fOLDERSToolStripMenuItem_Click);
-            // 
-            // warehousImportToolStripMenuItem
-            // 
-            this.warehousImportToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.fullImportWarehousToolStripMenuItem,
-            this.currentUserImportWarehousToolStripMenuItem});
-            this.warehousImportToolStripMenuItem.Name = "warehousImportToolStripMenuItem";
-            this.warehousImportToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
-            this.warehousImportToolStripMenuItem.Text = "WAREHOUS";
-            this.warehousImportToolStripMenuItem.Visible = false;
-            // 
-            // fullImportWarehousToolStripMenuItem
-            // 
-            this.fullImportWarehousToolStripMenuItem.Name = "fullImportWarehousToolStripMenuItem";
-            this.fullImportWarehousToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
-            this.fullImportWarehousToolStripMenuItem.Text = "Full";
-            this.fullImportWarehousToolStripMenuItem.Click += new System.EventHandler(this.fullToolStripMenuItem_Click);
-            // 
-            // currentUserImportWarehousToolStripMenuItem
-            // 
-            this.currentUserImportWarehousToolStripMenuItem.Name = "currentUserImportWarehousToolStripMenuItem";
-            this.currentUserImportWarehousToolStripMenuItem.Size = new System.Drawing.Size(137, 22);
-            this.currentUserImportWarehousToolStripMenuItem.Text = "CurrentUser";
             // 
             // exportToolStripMenuItem
             // 
             this.exportToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.FoldersExportToolStripMenuItem1,
-            this.WarehousExportToolStripMenuItem});
+            this.FoldersExportToolStripMenuItem1});
             this.exportToolStripMenuItem.Name = "exportToolStripMenuItem";
-            this.exportToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.exportToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.exportToolStripMenuItem.Text = "Export";
-            this.exportToolStripMenuItem.Click += new System.EventHandler(this.exportToolStripMenuItem_Click);
             // 
             // FoldersExportToolStripMenuItem1
             // 
             this.FoldersExportToolStripMenuItem1.Enabled = false;
             this.FoldersExportToolStripMenuItem1.Name = "FoldersExportToolStripMenuItem1";
-            this.FoldersExportToolStripMenuItem1.Size = new System.Drawing.Size(138, 22);
+            this.FoldersExportToolStripMenuItem1.Size = new System.Drawing.Size(122, 22);
             this.FoldersExportToolStripMenuItem1.Text = "FOLDERS";
             this.FoldersExportToolStripMenuItem1.Click += new System.EventHandler(this.FoldersExportToolStripMenuItem1_Click);
-            // 
-            // WarehousExportToolStripMenuItem
-            // 
-            this.WarehousExportToolStripMenuItem.Enabled = false;
-            this.WarehousExportToolStripMenuItem.Name = "WarehousExportToolStripMenuItem";
-            this.WarehousExportToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
-            this.WarehousExportToolStripMenuItem.Text = "WAREHOUS";
-            this.WarehousExportToolStripMenuItem.Visible = false;
-            this.WarehousExportToolStripMenuItem.Click += new System.EventHandler(this.WarehousToolStripMenuItem1_Click);
             // 
             // optionsToolStripMenuItem
             // 
@@ -472,10 +432,8 @@
             this.treeViewPrev.Size = new System.Drawing.Size(372, 452);
             this.treeViewPrev.TabIndex = 25;
             this.treeViewPrev.TabStop = false;
-            this.treeViewPrev.AfterLabelEdit += new System.Windows.Forms.NodeLabelEditEventHandler(this.treeViewPrev_AfterLabelEdit);
             this.treeViewPrev.ItemDrag += new System.Windows.Forms.ItemDragEventHandler(this.treeViewPrev_ItemDrag);
             this.treeViewPrev.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewPrev_NodeMouseClick);
-            this.treeViewPrev.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewPrev_NodeMouseDoubleClick);
             this.treeViewPrev.DragDrop += new System.Windows.Forms.DragEventHandler(this.treeViewPrev_DragDrop);
             this.treeViewPrev.DragEnter += new System.Windows.Forms.DragEventHandler(this.treeViewPrev_DragEnter);
             this.treeViewPrev.DragOver += new System.Windows.Forms.DragEventHandler(this.treeViewPrev_DragOver);
@@ -508,6 +466,7 @@
             // 
             // listBoxNew
             // 
+            this.listBoxNew.AllowDrop = true;
             this.listBoxNew.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
@@ -518,7 +477,12 @@
             this.listBoxNew.SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended;
             this.listBoxNew.Size = new System.Drawing.Size(372, 514);
             this.listBoxNew.TabIndex = 0;
-            this.listBoxNew.SelectedIndexChanged += new System.EventHandler(this.listBoxNew_SelectedIndexChanged);
+            this.listBoxNew.DragEnter += new System.Windows.Forms.DragEventHandler(this.listBoxNew_DragEnter);
+            this.listBoxNew.DragOver += new System.Windows.Forms.DragEventHandler(this.listBoxNew_DragOver);
+            this.listBoxNew.KeyDown += new System.Windows.Forms.KeyEventHandler(this.listBoxNew_KeyDown);
+            this.listBoxNew.MouseDown += new System.Windows.Forms.MouseEventHandler(this.listBoxNew_MouseDown);
+            this.listBoxNew.MouseMove += new System.Windows.Forms.MouseEventHandler(this.listBoxNew_MouseMove);
+            this.listBoxNew.MouseUp += new System.Windows.Forms.MouseEventHandler(this.listBoxNew_MouseUp);
             // 
             // tableLayoutPanel1
             // 
@@ -735,12 +699,8 @@
         private System.Windows.Forms.ToolStripMenuItem importToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem optionsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem foldersImportToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem warehousImportToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem fullImportWarehousToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem currentUserImportWarehousToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exportToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem FoldersExportToolStripMenuItem1;
-        private System.Windows.Forms.ToolStripMenuItem WarehousExportToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem connectionsPropertiesToolStripMenuItem;
         private System.Windows.Forms.ComboBox comboBoxFolders;
         private System.Windows.Forms.TreeView treeViewPrev;

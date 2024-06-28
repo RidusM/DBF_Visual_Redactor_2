@@ -1,48 +1,21 @@
-﻿using Microsoft.Win32;
+﻿using DBF_Visual_Redactor.DataClasses;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Windows.Controls;
 using System.Windows.Forms;
-using ListBox = System.Windows.Forms.ListBox;
 using SelectionMode = System.Windows.Forms.SelectionMode;
-using TreeView = System.Windows.Forms.TreeView;
 
 
 namespace DBF_Visual_Redactor
 {
     public partial class Form1 : Form
     {
-        public class FoldersData
-        {
-            public string ID { get; set; }
-            public string NAME { get; set; }
-            public int LEVEL { get; set; }
-            public int INDEX { get; set; }
-        };
-        public class WarehousData
-        {
-            public string ID { get; set; }
-            public string ID_PRCG { get; set; }
-            public string NAME { get; set; }
-            public string FOLDER { get; set; }
-            public decimal WEIGHT { get; set; }
-            public decimal INPACK { get; set; }
-            public decimal QTY { get; set; }
-            public decimal COST1 { get; set; }
-        }
-        public class RecordsList
-        {
-            [JsonProperty("VALUE")]
-            public string VALUE { get; set; }
-            [JsonProperty("NAME")]
-            public string NAME { get; set; }
-        }
         private bool _draggActive = false;
         private Point _draggStartPoint = new();
         private API apiClient = new API();
@@ -54,12 +27,15 @@ namespace DBF_Visual_Redactor
         private List<FoldersData> _newFolders;
         private List<WarehousData> _prevWarehous;
         private List<FoldersData> _prevFolders;
-        private List<WarehousData> _NoSKUWarehous;
+        private List<WarehousData> _exportWarehous;
+        private List<FoldersData> _exportFolders;
+        private List<WarehousData> _toLeftLbWarehous;
         public Form1()
         {
             InitializeComponent();
             treeViewPrev.TabStop = false;
             listBoxItems.TabStop = false;
+            listBoxNew.TabStop = false;
         }
         // Внесение изменений в ListBox
         private void listBox2_SelectedIndexChanged(object sender, EventArgs e)
@@ -67,19 +43,20 @@ namespace DBF_Visual_Redactor
             if (listBoxItems.SelectedIndex != -1 && IsPrev)
             {
                 textBoxID.Text = listBoxItems.GetItemText(listBoxItems.SelectedValue.ToString());
-                textBoxID_PRCG.Text = _prevWarehous.Find(x => x.ID == textBoxID.Text).ID_PRCG;
+                textBoxID_PRCG.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).ID_PRCG;
                 textBoxName.Text = listBoxItems.GetItemText(listBoxItems.SelectedItem);
-                textBoxWeight.Text = _prevWarehous.Find(x => x.ID == textBoxID.Text).WEIGHT.ToString(CultureInfo.InvariantCulture);
-                textBoxInPack.Text = _prevWarehous.Find(x => x.ID == textBoxID.Text).INPACK.ToString(CultureInfo.InvariantCulture);
-                textBoxQTY.Text = _prevWarehous.Find(x => x.ID == textBoxID.Text).QTY.ToString(CultureInfo.InvariantCulture);
-                textBoxCost1.Text = _prevWarehous.Find(x => x.ID == textBoxID.Text).COST1.ToString(CultureInfo.InvariantCulture);
+                textBoxWeight.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).WEIGHT.ToString(CultureInfo.InvariantCulture);
+                textBoxInPack.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).INPACK.ToString(CultureInfo.InvariantCulture);
+                textBoxQTY.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).QTY.ToString(CultureInfo.InvariantCulture);
+                textBoxCost1.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).COST1.ToString(CultureInfo.InvariantCulture);
             }
         }
-        private void button3_Click(object sender, EventArgs e)
+        // Изменение параметров поля
+        private void buttonSaveParameters_Click(object sender, EventArgs e)
         {
             if (listBoxItems.SelectedIndex > -1 && IsPrev)
             {
-                foreach (var item in _prevWarehous.Where(x => x.ID == listBoxItems.SelectedValue.ToString()))
+                foreach (var item in _exportWarehous.Where(x => x.ID == listBoxItems.SelectedValue.ToString()))
                 {
                     item.ID = textBoxID.Text;
                     item.ID_PRCG = textBoxID_PRCG.Text;
@@ -104,7 +81,6 @@ namespace DBF_Visual_Redactor
             Host = settings["ip"].Value;
             Port = settings["port"].Value;
         }
-
         // Export данных в DBF
         IEnumerable<TreeNode> Collect(TreeNodeCollection nodes)
         {
@@ -118,7 +94,7 @@ namespace DBF_Visual_Redactor
         }
         private void FoldersExportToolStripMenuItem1_Click(object sender, EventArgs e)
         {
-            _prevFolders.Clear();
+            _exportFolders.Clear();
             foreach (var node in Collect(treeViewPrev.Nodes))
             {
                 var newListFolders = new FoldersData()
@@ -127,33 +103,32 @@ namespace DBF_Visual_Redactor
                     NAME = node.Text,
                     LEVEL = node.Level,
                 };
-                _prevFolders.Add(newListFolders);
+                _exportFolders.Add(newListFolders);
             }
             var output = """
                            {"Fields":[{"Name":"ID","FieldType":"C","Length":55,"DecimalPlaces":0},
                            {"Name":"LEVEL","FieldType":"N","Length":10,"DecimalPlaces":0},
                            {"Name":"NAME","FieldType":"C","Length":100,"DecimalPlaces":0}],"Records":[
                            """;
-            for (int i = 0; i < _prevFolders.Count; i++)
+            for (int i = 0; i < _exportFolders.Count; i++)
             {
-                if (_prevFolders[i].NAME.Contains('"'))
+                if (_exportFolders[i].NAME.Contains('"'))
                 {
-                    _prevFolders[i].NAME = _prevFolders[i].NAME.Replace("\"", @"\""");
+                    _exportFolders[i].NAME = _exportFolders[i].NAME.Replace("\"", @"\""");
                 }
                 output += $$"""
-                            [{"Name":"ID","Value":"{{_prevFolders[i].ID}}"},
-                            {"Name":"LEVEL","Value":"{{_prevFolders[i].LEVEL}}"},
-                            {"Name":"NAME","Value":"{{_prevFolders[i].NAME}}"}],
+                            [{"Name":"ID","Value":"{{_exportFolders[i].ID}}"},
+                            {"Name":"LEVEL","Value":"{{_exportFolders[i].LEVEL}}"},
+                            {"Name":"NAME","Value":"{{_exportFolders[i].NAME}}"}],
                             """;
             }
             output = output.Remove(output.Length - 1);
             output += "]}";
             apiClient.PostFolders(Host, Port, output);
-            _prevFolders.Clear();
             richTextBoxLogger.Text += "Произведен экспорт Folders\n";
             WarehousExport();
-        }
 
+        }
         private void WarehousExport()
         {
             var output = """
@@ -166,39 +141,35 @@ namespace DBF_Visual_Redactor
                          {"Name":"QTY","FieldType":"N","Length":10,"DecimalPlaces":3},
                          {"Name":"COST1","FieldType":"N","Length":10,"DecimalPlaces":2}],"Records":[
                          """;
-            for (int i = 0; i < _prevWarehous.Count; i++)
+            for (int i = 0; i < _exportWarehous.Count; i++)
             {
-                if (_prevWarehous[i].NAME.Contains(@"\"))
+                if (_exportWarehous[i].NAME.Contains(@"\"))
                 {
-                    _prevWarehous[i].NAME = _prevWarehous[i].NAME.Replace(@"\", @"");
+                    _exportWarehous[i].NAME = _exportWarehous[i].NAME.Replace(@"\", @"");
                 }
-                if (_prevWarehous[i].NAME.Contains('"'))
+                if (_exportWarehous[i].NAME.Contains('"'))
                 {
-                    _prevWarehous[i].NAME = _prevWarehous[i].NAME.Replace("\"", @"\""");
+                    _exportWarehous[i].NAME = _exportWarehous[i].NAME.Replace("\"", @"\""");
                 }
                 output += $$"""
-                            [{"Name":"ID","Value":"{{_prevWarehous[i].ID}}"},
-                            {"Name":"ID_PRCG","Value":"{{_prevWarehous[i].ID_PRCG}}"},
-                            {"Name":"NAME","Value":"{{_prevWarehous[i].NAME}}"},
-                            {"Name":"FOLDER","Value":"{{_prevWarehous[i].FOLDER}}"},
-                            {"Name":"WEIGHT","Value":"{{_prevWarehous[i].WEIGHT.ToString().Replace(",", ".")}}"},
-                            {"Name":"INPACK","Value":"{{_prevWarehous[i].INPACK.ToString().Replace(",", ".")}}"},
-                            {"Name":"QTY","Value":"{{_prevWarehous[i].QTY.ToString().Replace(",", ".")}}"},
-                            {"Name":"COST1","Value":"{{_newWarehous[i].COST1.ToString().Replace(",", ".")}}"}],
+                            [{"Name":"ID","Value":"{{_exportWarehous[i].ID}}"},
+                            {"Name":"ID_PRCG","Value":"{{_exportWarehous[i].ID_PRCG}}"},
+                            {"Name":"NAME","Value":"{{_exportWarehous[i].NAME}}"},
+                            {"Name":"FOLDER","Value":"{{_exportWarehous[i].FOLDER}}"},
+                            {"Name":"WEIGHT","Value":"{{_exportWarehous[i].WEIGHT.ToString().Replace(",", ".")}}"},
+                            {"Name":"INPACK","Value":"{{_exportWarehous[i].INPACK.ToString().Replace(",", ".")}}"},
+                            {"Name":"QTY","Value":"{{_exportWarehous[i].QTY.ToString().Replace(",", ".")}}"},
+                            {"Name":"COST1","Value":"{{_exportWarehous[i].COST1.ToString().Replace(",", ".")}}"}],
                             """;
             }
             output = output.Remove(output.Length - 1);
             output += "]}";
             apiClient.PostWarehous(Host, Port, output);
+            _exportWarehous.Clear();
             _newWarehous.Clear();
             _prevWarehous.Clear();
             richTextBoxLogger.Text += "Произведен экспорт Warehous\n";
         }
-        private void WarehousToolStripMenuItem1_Click(object sender, EventArgs e)
-        {
-            WarehousExport();
-        }
-
         // Import данных из DBF
         private void fOLDERSToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -206,19 +177,12 @@ namespace DBF_Visual_Redactor
             FoldersExportToolStripMenuItem1.Enabled = true;
             GetNewFolders();
             GetPrevFolders();
-            GetWarehous();
+            GetNewWarehous();
+            GetPrevWarehous();
+            GetDifferenceData();
             PopulateBaseNodes();
             richTextBoxLogger.Text += "Произведен импорт Folders\n";
 
-        }
-        private void fullToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            FoldersExportToolStripMenuItem1.Enabled = true;
-            treeViewPrev.Nodes.Clear();
-            treeViewPrev.Nodes.Clear();
-            GetNewFolders();
-            PopulateBaseNodes();
-            richTextBoxLogger.Text += "Произведен экспорт полного Warehous\n";
         }
         private void GetNewFolders()
         {
@@ -243,25 +207,63 @@ namespace DBF_Visual_Redactor
                 }
             }
         }
-
-        private void FillListBoxNew()
+        private void GetDifferenceData()
         {
-            _NoSKUWarehous = new List<WarehousData>();
-            var listWithItems = _prevFolders.Where(x => _newWarehous.Any(x2 => x.ID == x2.FOLDER)); 
-            _NoSKUWarehous.AddRange(_newWarehous.Where(x => !_prevWarehous.Any(x2 => x.ID == x2.ID)));
-            var newlist = listWithItems.Where(x => _NoSKUWarehous.Any(x2 => x2.FOLDER == x.ID));
+            _exportWarehous = new List<WarehousData>();
+            _exportFolders = new List<FoldersData>();
+            _toLeftLbWarehous = new List<WarehousData>();
+            _toLeftLbWarehous.Clear();
+            var allWarehousData = _newWarehous.Concat(_prevWarehous).ToList();
+            var allFoldersData = _newFolders.Concat(_prevFolders).ToList();
+            foreach (var warehous in allWarehousData)
+            {
+                try
+                {
+                    warehous.COST1 = _prevWarehous.Find(x => x.ID == warehous.ID).COST1;
+                    warehous.QTY = _prevWarehous.Find(x => x.ID == warehous.ID).QTY;
+                    warehous.NAME = _prevWarehous.Find(x => x.ID == warehous.ID).NAME;
+                }
+                catch
+                {
+                    warehous.COST1 = _newWarehous.Find(x => x.ID == warehous.ID).COST1;
+                    warehous.QTY = _newWarehous.Find(x => x.ID == warehous.ID).QTY;
+                    warehous.NAME = _newWarehous.Find(x => x.ID == warehous.ID).NAME;
+                }
+            }
+            var differenceWarehousData = allWarehousData.Where(x => !_prevWarehous.Any(x2 => x2.ID == x.ID)).ToList();
+            var differenceFoldersData = allFoldersData.Where(x => !_newFolders.Any(x2 => x.ID == x2.ID)).ToList();
+            _exportFolders = _prevFolders.ToList();
+            if (_exportFolders.Count > _newFolders.Count)
+                _exportFolders = _newFolders.ToList();
+            var itemToHide = differenceWarehousData.Where(x => _exportFolders.Any(x2 => x.FOLDER == x2.ID)).ToList();
+            foreach ( var item in itemToHide)
+            {
+                differenceWarehousData.Remove(item);
+                allWarehousData.Remove(item);
+            }
+            _exportWarehous = _exportWarehous.Concat(differenceWarehousData).Concat(_prevWarehous).ToList();
+            _toLeftLbWarehous = allWarehousData.Where(x => !_prevWarehous.Any(x2 => x.ID == x2.ID)).ToList();
             listBoxNew.ValueMember = "ID";
             listBoxNew.DisplayMember = "NAME";
-            listBoxNew.DataSource = newlist.ToList();
+            listBoxNew.DataSource = _toLeftLbWarehous;
+            comboBoxFolders.ValueMember = "Key";
+            comboBoxFolders.DisplayMember = "Value";
+            comboBoxFolders.DataSource = _exportFolders.ToList();
+            comboBoxFolders.Text = null;
+            textBoxCost1.Text = null;
+            textBoxID.Text = null;
+            textBoxID_PRCG.Text = null;
+            textBoxInPack.Text = null;
+            textBoxName.Text = null;
+            textBoxQTY.Text = null;
+            textBoxWeight.Text = null;
         }
-
         private void GetPrevFolders()
         {
             string json = apiClient.GetPrevFolders(Host, Port).Result;
             var root = JObject.Parse(json);
             var records = root.Last;
             _prevFolders = new List<FoldersData>();
-            Dictionary<string, string> comboSource = new Dictionary<string, string>();
             var data = records.Children();
             foreach (JToken result in data)
             {
@@ -275,16 +277,11 @@ namespace DBF_Visual_Redactor
                         _prevFolders[i].ID = record[i][0].VALUE;
                         _prevFolders[i].LEVEL = Convert.ToInt32(record[i][1].VALUE);
                         _prevFolders[i].NAME = record[i][2].VALUE;
-                        comboSource.Add(_prevFolders[i].ID, _prevFolders[i].NAME);
                     }
                 }
             }
-            comboBoxFolders.ValueMember = "Key";
-            comboBoxFolders.DisplayMember = "Value";
-            comboBoxFolders.DataSource = comboSource.ToList();
         }
-
-        private void GetWarehous()
+        private void GetNewWarehous()
         {
             string json = apiClient.GetWarehous(Host, Port).Result;
             var root = JObject.Parse(json);
@@ -313,9 +310,7 @@ namespace DBF_Visual_Redactor
                     }
                 }
             }
-            GetPrevWarehous();
         }
-
         private void GetPrevWarehous()
         {
             string json = apiClient.GetPrevWarehous(Host, Port).Result;
@@ -345,20 +340,17 @@ namespace DBF_Visual_Redactor
                     }
                 }
             }
-            FillListBoxNew();
         }
-
         // treeView логика построения
         public void PopulateBaseNodes()
         {
             treeViewPrev.Nodes.Clear();
             treeViewPrev.BeginUpdate();
-
-            for (var i = 0; i < _prevFolders.Count; i++)
-                if (_prevFolders[i].LEVEL == 0)
+            for (var i = 0; i < _exportFolders.Count; i++)
+                if (_exportFolders[i].LEVEL == 0)
                 {
-                    treeViewPrev.Nodes.Add(_prevFolders[i].ID, _prevFolders[i].NAME);
-                    treeViewPrev.Nodes[treeViewPrev.Nodes.Count - 1].Tag = _prevFolders[i];
+                    treeViewPrev.Nodes.Add(_exportFolders[i].ID, _exportFolders[i].NAME);
+                    treeViewPrev.Nodes[treeViewPrev.Nodes.Count - 1].Tag = _exportFolders[i];
                 }
 
             for (var i = 0; i < treeViewPrev.Nodes.Count; i++)
@@ -368,21 +360,97 @@ namespace DBF_Visual_Redactor
         public void PopulateChilds(TreeNode parentNode)
         {
             var parentRed = (FoldersData)parentNode.Tag;
-
-            for (var i = parentRed.INDEX + 1; i < _prevFolders.Count; i++)
+            for (var i = parentRed.INDEX + 1; i < _exportFolders.Count; i++)
             {
-                if (_prevFolders[i].LEVEL == parentRed.LEVEL + 1)
+                if (_exportFolders[i].LEVEL == parentRed.LEVEL + 1)
                 {
-                    parentNode.Nodes.Add(_prevFolders[i].ID, _prevFolders[i].NAME);
-                    parentNode.Nodes[parentNode.Nodes.Count - 1].Tag = _prevFolders[i];
+                    parentNode.Nodes.Add(_exportFolders[i].ID, _exportFolders[i].NAME);
+                    parentNode.Nodes[parentNode.Nodes.Count - 1].Tag = _exportFolders[i];
                     PopulateChilds(parentNode.Nodes[parentNode.Nodes.Count - 1]);
                 }
 
-                if (_prevFolders[i].LEVEL <= parentRed.LEVEL) break;
+                if (_exportFolders[i].LEVEL <= parentRed.LEVEL) break;
             }
         }  // Объявление дочерних узлов
         // treeView создание новых веток
-        // treeView редактирование названий FOLDERS
+        private void buttonAddFolder_Click(object sender, EventArgs e)
+        {
+            var cr = new CreateFolder();
+            cr.ShowDialog();
+            if (cr.id != "" && cr.name != "")
+            {
+                treeViewPrev.Nodes.Add(cr.id, cr.name);
+                _prevFolders.Add(new FoldersData { ID = cr.id, NAME = cr.name });
+            }
+
+            richTextBoxLogger.Text += $"Добавлена новая папка. ID={cr.id}, NAME={cr.name}\n";
+        }
+        // treeView удаление веток
+        private void buttonDeleteFolder_Click(object sender, EventArgs e)
+        {
+            if (treeViewPrev.SelectedNode != null)
+            {
+                if (listBoxItems.Items.Count < 1)
+                {
+                    treeViewPrev.Nodes.Remove(treeViewPrev.SelectedNode);
+                    richTextBoxLogger.Text +=
+                    $"Удалена папка. ID={treeViewPrev.SelectedNode.Name}, NAME={treeViewPrev.SelectedNode.Text}\n";
+                }
+                else MessageBox.Show(@"Удаление папки невозможно, пока в нем находится товар.", "Ошибка", MessageBoxButtons.OK);
+            }
+            else MessageBox.Show(@"Пожалуйста, выберите необходимый элемент!", @"Ошибка", MessageBoxButtons.OK);
+        }
+        private void listBoxNew_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            IsPrev = false;
+            textBoxID.Text = null;
+            textBoxID_PRCG.Text = null;
+            textBoxName.Text = null;
+            comboBoxFolders.Text = null;
+            textBoxWeight.Text = null;
+            textBoxInPack.Text = null;
+            textBoxQTY.Text = null;
+            textBoxCost1.Text = null;
+            if (listBoxNew.Items.Count > -1 && listBoxNew.SelectedItem != null && listBoxNew.SelectedValue.ToString() != "")
+            {
+                textBoxID.Text = listBoxNew.GetItemText(listBoxNew.SelectedValue.ToString());
+                textBoxID_PRCG.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).ID_PRCG;
+                textBoxName.Text = listBoxNew.GetItemText(listBoxNew.SelectedItem);
+                textBoxWeight.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).WEIGHT
+                    .ToString(CultureInfo.InvariantCulture);
+                textBoxInPack.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).INPACK
+                    .ToString(CultureInfo.InvariantCulture);
+                textBoxQTY.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).QTY
+                    .ToString(CultureInfo.InvariantCulture);
+                textBoxCost1.Text = _exportWarehous.Find(x => x.ID == textBoxID.Text).COST1
+                    .ToString(CultureInfo.InvariantCulture);
+            }
+        }
+        private void treeViewPrev_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            IsPrev = true;
+            textBoxID.Text = null;
+            textBoxID_PRCG.Text = null;
+            textBoxName.Text = null;
+            comboBoxFolders.Text = null;
+            textBoxWeight.Text = null;
+            textBoxInPack.Text = null;
+            textBoxQTY.Text = null;
+            textBoxCost1.Text = null;
+            if (treeViewPrev.Nodes.Count > 0)
+            {
+                listBoxItems.DisplayMember = "Name";
+                listBoxItems.ValueMember = "ID";
+                var listFolder = _newFolders.Concat(_prevFolders).ToList();
+                var listFolder2 = listFolder.Where(x => x.NAME == e.Node.Text).ToList();
+                var listDataSource = _newWarehous.Where(x => listFolder2.Any(x2 => x.FOLDER == x2.ID));
+                var listDataSource2 = _prevWarehous.Where(x => listFolder2.Any(x2 => x.FOLDER == x2.ID));
+                listDataSource = listDataSource.Concat(listDataSource2);
+                listBoxItems.DataSource = listDataSource.ToList();
+                comboBoxFolders.SelectedIndex = e.Node.Index;
+                comboBoxFolders.Text = e.Node.Text;
+            }
+        }
         private bool ContainsNode(TreeNode node, TreeNode targetNode)
         {
             if (targetNode.Parent == null) return false;
@@ -404,6 +472,7 @@ namespace DBF_Visual_Redactor
         */
         private void listBox2_MouseDown(object sender, MouseEventArgs e)
         {
+            IsPrev = true;
             if (e.Button == MouseButtons.Left && listBoxItems.SelectedIndex > -1)
             {
                 _draggActive = true;
@@ -434,46 +503,20 @@ namespace DBF_Visual_Redactor
         private void StartDragging()
         {
             _draggActive = false;
-            listBoxItems.DoDragDrop(listBoxItems.SelectedItem, DragDropEffects.Move);
-
+            if (listBoxItems.SelectedItem != null) 
+                listBoxItems.DoDragDrop(listBoxItems.SelectedItem, DragDropEffects.Move);
+            else
+                listBoxNew.DoDragDrop(listBoxNew.SelectedItem, DragDropEffects.Move);
         }
-
-        private void treeViewPrev_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            IsPrev = true;
-            textBoxID.Text = null;
-            textBoxID_PRCG.Text = null;
-            textBoxName.Text = null;
-            comboBoxFolders.Text = null;
-            textBoxWeight.Text = null;
-            textBoxInPack.Text = null;
-            textBoxQTY.Text = null;
-            textBoxCost1.Text = null;
-            if (treeViewPrev.Nodes.Count > 0)
-            {
-                listBoxItems.DisplayMember = "Name";
-                listBoxItems.ValueMember = "ID";
-                listBoxItems.DataSource = _prevWarehous.Where(x => x.FOLDER == e.Node.Name).ToList();
-                comboBoxFolders.Text = e.Node.Text;
-            }
-        }
-
-        private void treeViewPrev_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            treeViewPrev.SelectedNode.BeginEdit();
-        }
-
         private void treeViewPrev_DragEnter(object sender, DragEventArgs e)
         {
             e.Effect = DragDropEffects.Move;
         }
-
         private void treeViewPrev_ItemDrag(object sender, ItemDragEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
                 DoDragDrop(e.Item, DragDropEffects.Move);
         }
-
         private void treeViewPrev_DragDrop(object sender, DragEventArgs e)
         {
             var targetNode = treeViewPrev.GetNodeAt(treeViewPrev.PointToClient(new Point(e.X, e.Y)));
@@ -501,7 +544,7 @@ namespace DBF_Visual_Redactor
                     }
                     catch
                     {
-                        _prevFolders.Find(x => x.ID == draggedNode.Name).LEVEL = draggedNode.Level;
+                        _newFolders.Find(x => x.ID == draggedNode.Name).LEVEL = draggedNode.Level;
                         draggedNode.BackColor = Color.White;
                     }
                 }
@@ -510,108 +553,44 @@ namespace DBF_Visual_Redactor
             {
                 foreach (var item in listBoxItems.SelectedItems)
                 {
-                    var result = listBoxItems.GetItemText(item);
-                    string newFolder = _prevWarehous.Find(x => x.NAME == result).FOLDER;
-                    string lastFolder = _prevFolders.Find(x => x.ID == newFolder).NAME;
-                    _prevWarehous.Find(x => x.NAME == result).FOLDER = targetNode.Name;
-                    listBoxItems.Update();
-                    richTextBoxLogger.Text += $"Перемещена папка {result}\nв папку {targetNode.Text}.\n" +
-                                              $"Прошлая папка {lastFolder}.\n";
+                    try
+                    {
+                        var result = listBoxNew.GetItemText(item);
+                        _exportWarehous.Find(x => x.NAME == result).FOLDER = targetNode.Name;
+                        richTextBoxLogger.Text += $"{result} перемещен \nв папку {targetNode.Text}.\n";
+                    }
+                    catch { }
                 }
+                var newDataSource = _exportWarehous.Where(x => x.FOLDER == targetNode.Name).ToList();
+                listBoxItems.DataSource = newDataSource;
+                listBoxItems.Refresh();
+                treeViewPrev.SelectedNode = targetNode;
             }
             else if (!IsPrev)
             {
-                foreach (var item in listBoxItems.SelectedItems)
+                foreach (var item in listBoxNew.SelectedItems)
                 {
-                    var result = listBoxItems.GetItemText(item);
-                    string newFolder = _NoSKUWarehous.Find(x => x.NAME == result).FOLDER;
-                    string lastFolder = _prevFolders.Find(x => x.ID == newFolder).NAME;
-                    var newItem = _NoSKUWarehous.Find(x => x.NAME == result);
-                    _NoSKUWarehous.Find(x => x.NAME == result).FOLDER = targetNode.Name;
-                    _newWarehous.Remove(newItem);
-                    _NoSKUWarehous.Remove(newItem);
-                    _prevWarehous.Add(newItem);
-                    listBoxItems.Update();
-                    richTextBoxLogger.Text += $"Перемещена папка {result}\nв папку {targetNode.Text}.\n" +
-                                              $"Прошлая папка {lastFolder}.\n";
+                    try
+                    {
+                        var result = listBoxNew.GetItemText(item);
+                        _exportWarehous.Find(x => x.NAME == result).FOLDER = targetNode.Name;
+                        var deleteItem = _toLeftLbWarehous.Find(x => x.NAME == result);
+                        _toLeftLbWarehous.Remove(deleteItem);
+                        richTextBoxLogger.Text += $"{result} перемещен \nв папку {targetNode.Text}.\n";
+                    }
+                    catch { }
                 }
+                listBoxNew.DataSource = null;
+                listBoxNew.ValueMember = "ID";
+                listBoxNew.DisplayMember = "NAME";
+                listBoxNew.DataSource = _toLeftLbWarehous;
             }
         }
-
-        private void treeViewPrev_AfterLabelEdit(object sender, NodeLabelEditEventArgs e)
-        {
-            foreach (var item in _prevFolders.Where(x => x.ID == e.Node.Name))
-                item.NAME = e.Label;
-            richTextBoxLogger.Text += $"Измененно название папки. Прошлое имя = {e.Node.Text}, новое имя = {e.Label}\n";
-        }
-
         private void treeViewPrev_DragOver(object sender, DragEventArgs e)
         {
             var targetPoint = treeViewPrev.PointToClient(new Point(e.X, e.Y));
             treeViewPrev.SelectedNode = treeViewPrev.GetNodeAt(targetPoint);
         }
-
-        private void buttonAddFolder_Click(object sender, EventArgs e)
-        {
-            var cr = new CreateFolder();
-            cr.ShowDialog();
-            if (cr.id != "" && cr.name != "")
-            {
-                treeViewPrev.Nodes.Add(cr.id, cr.name);
-                _prevFolders.Add(new FoldersData { ID = cr.id, NAME = cr.name });
-            }
-
-            richTextBoxLogger.Text += $"Добавлена новая папка. ID={cr.id}, NAME={cr.name}\n";
-        }
-        private void buttonDeleteFolder_Click(object sender, EventArgs e)
-        {
-            if (treeViewPrev.SelectedNode != null)
-            {
-                if (listBoxItems.Items.Count < 0)
-                {
-                    treeViewPrev.Nodes.Remove(treeViewPrev.SelectedNode);
-                    richTextBoxLogger.Text +=
-                    $"Удалена папка. ID={treeViewPrev.SelectedNode.Name}, NAME={treeViewPrev.SelectedNode.Text}\n";
-                }
-                else MessageBox.Show(@"Удаление папки невозможно, пока в нем находится товар.", "Ошибка", MessageBoxButtons.OK);
-            }
-            else MessageBox.Show(@"Пожалуйста, выберите необходимый элемент!", @"Ошибка", MessageBoxButtons.OK);
-        }
-
-        private void listBoxNew_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            IsPrev = false;
-            textBoxID.Text = null;
-            textBoxID_PRCG.Text = null;
-            textBoxName.Text = null;
-            comboBoxFolders.Text = null;
-            textBoxWeight.Text = null;
-            textBoxInPack.Text = null;
-            textBoxQTY.Text = null;
-            textBoxCost1.Text = null;
-            if (listBoxNew.Items.Count > -1)
-            {
-                listBoxItems.DataSource = _NoSKUWarehous.Where(x => x.FOLDER == listBoxNew.GetItemText(listBoxNew.SelectedValue)).ToList();
-                listBoxItems.ValueMember = "ID";
-                listBoxItems.DisplayMember = "NAME";
-                if (listBoxItems.SelectedValue != null)
-                {
-                    comboBoxFolders.Text = listBoxNew.SelectedValue.ToString();
-                    textBoxID.Text = listBoxItems.GetItemText(listBoxItems.SelectedValue.ToString());
-                    textBoxID_PRCG.Text = _NoSKUWarehous.Find(x => x.ID == textBoxID.Text).ID_PRCG;
-                    textBoxName.Text = listBoxItems.GetItemText(listBoxItems.SelectedItem);
-                    textBoxWeight.Text = _NoSKUWarehous.Find(x => x.ID == textBoxID.Text).WEIGHT
-                        .ToString(CultureInfo.InvariantCulture);
-                    textBoxInPack.Text = _NoSKUWarehous.Find(x => x.ID == textBoxID.Text).INPACK
-                        .ToString(CultureInfo.InvariantCulture);
-                    textBoxQTY.Text = _NoSKUWarehous.Find(x => x.ID == textBoxID.Text).QTY
-                        .ToString(CultureInfo.InvariantCulture);
-                    textBoxCost1.Text = _NoSKUWarehous.Find(x => x.ID == textBoxID.Text).COST1
-                        .ToString(CultureInfo.InvariantCulture);
-                }
-            }
-        }
-
         private void listBoxItems_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Control && e.KeyCode == Keys.A)
@@ -623,15 +602,55 @@ namespace DBF_Visual_Redactor
                 listBoxItems.EndUpdate();
             }
         }
-
-        private void listBoxItems_DoubleClick(object sender, EventArgs e)
+        private void listBoxNew_DragEnter(object sender, DragEventArgs e)
         {
-            listBoxItems.SelectionMode = SelectionMode.MultiExtended;
+            e.Effect = e.AllowedEffect;
         }
-
-        private void exportToolStripMenuItem_Click(object sender, EventArgs e)
+        private void listBoxNew_DragOver(object sender, DragEventArgs e)
         {
-
+            e.Effect = DragDropEffects.Move;
+            treeViewPrev.Focus();
+        }
+        private void listBoxNew_MouseDown(object sender, MouseEventArgs e)
+        {
+            IsPrev = false;
+            if (e.Button == MouseButtons.Left && listBoxNew.SelectedIndex > -1)
+            {
+                _draggActive = true;
+                _draggStartPoint = new Point(e.X, e.Y);
+                if (_draggActive == false)
+                {
+                    int y = e.Y / listBoxNew.ItemHeight;
+                    if (y < listBoxNew.Items.Count)
+                    {
+                        listBoxNew.SelectedIndex = listBoxNew.TopIndex + y;
+                        listBoxNew.SetSelected(listBoxNew.SelectedIndex, true);
+                    }
+                }
+            }
+        }
+        private void listBoxNew_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_draggActive)
+            {
+                if (Math.Abs(e.X - _draggStartPoint.X) > 1 || Math.Abs(e.Y - _draggStartPoint.Y) > 1)
+                    StartDragging();
+            }
+        }
+        private void listBoxNew_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (_draggActive)
+                _draggActive = false;
+        }
+        private void listBoxNew_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.A)
+            {
+                listBoxNew.BeginUpdate();
+                for (int i = 0; i < listBoxNew.Items.Count; i++)
+                    listBoxNew.SetSelected(i, true);
+                listBoxNew.EndUpdate();
+            }
         }
     }
 }
